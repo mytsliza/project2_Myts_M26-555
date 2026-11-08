@@ -3,9 +3,9 @@ import shlex
 from prettytable import PrettyTable
 
 from primitive_db import core, parser, utils
+from primitive_db.constants import META_FILE
 from primitive_db.decorators import create_cacher
 
-DB_FILE = "db_meta.json"
 select_cacher = create_cacher()
 
 def print_help():
@@ -65,7 +65,7 @@ def run():
         elif command == "help":
             print_help()
         elif command == "list_tables":
-            metadata = utils.load_metadata(DB_FILE)
+            metadata = utils.load_metadata(META_FILE)
             core.list_tables(metadata)
         elif command == "create_table":
             if len(args) < 3:
@@ -73,17 +73,17 @@ def run():
                 continue
             table_name = args[1]
             columns = args[2:]
-            metadata = utils.load_metadata(DB_FILE)
+            metadata = utils.load_metadata(META_FILE)
             new_metadata = core.create_table(metadata, table_name, columns)
-            utils.save_metadata(DB_FILE, new_metadata)
+            utils.save_metadata(META_FILE, new_metadata)
         elif command == "drop_table":
             if len(args) != 2:
                 print("Некорректное значение: неверное количество аргументов.")
                 continue
             table_name = args[1]
-            metadata = utils.load_metadata(DB_FILE)
+            metadata = utils.load_metadata(META_FILE)
             new_metadata = core.drop_table(metadata, table_name)
-            utils.save_metadata(DB_FILE, new_metadata)
+            utils.save_metadata(META_FILE, new_metadata)
         
         # --- CRUD ОПЕРАЦИИ ---
         elif command == "insert" and len(args) >= 5 and args[1] == "into":
@@ -100,7 +100,7 @@ def run():
             # Разбиваем по запятым, убираем пробелы и кавычки
             values = [v.strip().strip('"').strip("'") for v in values_str.split(",")]
             
-            metadata = utils.load_metadata(DB_FILE)
+            metadata = utils.load_metadata(META_FILE)
             new_data = core.insert(metadata, table_name, values)
             if new_data is not None:
                 utils.save_table_data(table_name, new_data)
@@ -108,7 +108,7 @@ def run():
                 
         elif command == "select" and len(args) >= 3 and args[1] == "from":
             table_name = args[2]
-            metadata = utils.load_metadata(DB_FILE)
+            metadata = utils.load_metadata(META_FILE)
             if table_name not in metadata:
                 print(f'Ошибка: Таблица "{table_name}" не существует.')
                 continue
@@ -145,7 +145,7 @@ def run():
                 print("Ошибка: ожидалось 'set'.")
                 continue
             
-            metadata = utils.load_metadata(DB_FILE)
+            metadata = utils.load_metadata(META_FILE)
             if table_name not in metadata:
                 print(f'Ошибка: Таблица "{table_name}" не существует.')
                 continue
@@ -184,7 +184,7 @@ def run():
             where_str = " ".join(args[4:])
             where_clause = parser.parse_condition(where_str)
             
-            metadata = utils.load_metadata(DB_FILE)
+            metadata = utils.load_metadata(META_FILE)
             if table_name not in metadata:
                 print(f'Ошибка: Таблица "{table_name}" не существует.')
                 continue
@@ -206,7 +206,7 @@ def run():
                 print("Некорректное значение: укажите имя таблицы.")
                 continue
             table_name = args[1]
-            metadata = utils.load_metadata(DB_FILE)
+            metadata = utils.load_metadata(META_FILE)
             if table_name not in metadata:
                 print(f'Ошибка: Таблица "{table_name}" не существует.')
                 continue
