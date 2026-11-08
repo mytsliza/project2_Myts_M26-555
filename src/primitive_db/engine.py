@@ -3,9 +3,10 @@ import shlex
 from prettytable import PrettyTable
 
 from primitive_db import core, parser, utils
+from primitive_db.decorators import create_cacher
 
 DB_FILE = "db_meta.json"
-
+select_cacher = create_cacher()
 
 def print_help():
     """Prints the help message for the current mode."""
@@ -16,15 +17,18 @@ def print_help():
     print("<command> drop_table <имя_таблицы> - удалить таблицу")
     print("\n***Операции с данными***")
     print("Функции:")
-    print('<command> insert into <таблица> values ("знач1", знач2, ...)'
-          ' - создать запись'
-          )
-    print("<command> select from <таблица> [where <столбец> = <значение>]"
-     "- прочитать записи"
-     )
-    print("<command> update <таблица> set <столбец> = <значение>"
-        "where <условие> - обновить"
-        )
+    print(
+        '<command> insert into <таблица> values ("знач1", знач2, ...)'
+        " - создать запись"
+    )
+    print(
+        "<command> select from <таблица> [where <столбец> = <значение>]"
+        " - прочитать записи"
+    )
+    print(
+        "<command> update <таблица> set <столбец> = <значение>"
+        " where <условие> - обновить"
+    )
     print("<command> delete from <таблица> where <столбец> = <значение> - удалить")
     print("<command> info <таблица> - информация о таблице")
     print("\nОбщие команды:")
@@ -34,6 +38,7 @@ def print_help():
 
 def run():
     """Основной цикл программы."""
+    global select_cacher
     print("***База данных***")
     print_help()
 
@@ -99,6 +104,7 @@ def run():
             new_data = core.insert(metadata, table_name, values)
             if new_data is not None:
                 utils.save_table_data(table_name, new_data)
+                select_cacher = create_cacher()
                 
         elif command == "select" and len(args) >= 3 and args[1] == "from":
             table_name = args[2]
@@ -113,7 +119,15 @@ def run():
                 where_str = " ".join(args[4:])
                 where_clause = parser.parse_condition(where_str)
             
-            result = core.select(table_data, where_clause)
+            # Формируем уникальный ключ для кэша (имя таблицы + условие)
+            cache_key = f"{table_name}_{where_clause}"
+            
+            # Вызываем кэшер. Если результат есть в памяти — он вернется сразу.
+            # Если нет — вызовется core.select, результат сохранится в кэш.
+            result = select_cacher(
+                cache_key,
+                lambda: core.select(table_data, where_clause)
+            )
             
             # Выводим через PrettyTable
             table = PrettyTable()
@@ -154,6 +168,7 @@ def run():
             
             if count > 0:
                 utils.save_table_data(table_name, new_data)
+                select_cacher = create_cacher()
                 print(
                     f"Записи в таблице \"{table_name}\" успешно обновлены "
                     f"({count} шт.).")
@@ -179,6 +194,7 @@ def run():
             
             if count > 0:
                 utils.save_table_data(table_name, new_data)
+                select_cacher = create_cacher()
                 print(f"Записи из таблицы \"{table_name}\" успешно удалены "
                       f"({count} шт.)."
                       )
